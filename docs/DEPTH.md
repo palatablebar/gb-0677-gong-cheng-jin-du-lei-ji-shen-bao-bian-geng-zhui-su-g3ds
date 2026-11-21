@@ -13,6 +13,7 @@
 | M5 扣回核算 | 查看并运行扣回核算 | `/api/deductions` | `app/modules/m5_deductions/rules.py` | `tests/test_m5.py` |
 | M6 进度对账 | 查看并运行进度对账 | `/api/valuation` | `app/modules/m6_valuation/rules.py` | `tests/test_m6.py` |
 | M7 签证归档 | 查看并运行签证归档 | `/api/certificates` | `app/modules/m7_certificates/rules.py` | `tests/test_m7.py` |
+| M8 甲供材承接 | 跨期领用退库裁决、材料签证 | `/api/materials/ledger` | `app/material/rules.py` | `tests/test_material_rules.py`、`tests/test_material_store.py` |
 
 ## 陷阱登记
 
@@ -30,6 +31,11 @@
 | TRAP-07 | 累计量空值 | 按零冲回 | 隔离缺失 | `app/values.py` | `tests/test_m2.py::test_real_null_not_zero` |
 | TRAP-10 | 分币舍入 | 浮点误差 | 分项量化后净额守恒 | `app/modules/m5_deductions/rules.py` | `tests/test_m5.py::test_fraction_rounds_to_cent` |
 | TRAP-23 | 变更生效边界 | 旧价覆盖 | 按周期选择已批版本 | `app/modules/m3_changes/rules.py` | `tests/test_m3.py::test_effective_boundary` |
+| TRAP-31 | 累计领用直接抵扣 | 重算历史签证、重复扣 | 按材料码滚动未结池，抵扣封顶本期耗用 | `app/material/rules.py` | `tests/test_material_rules.py::test_deduction_never_exceeds_consumption` |
+| TRAP-32 | 退库超过未结池 | 产生负抵扣或回改旧签证 | 超额挂退库待结转，后续期承接冲减 | `app/material/rules.py` | `tests/test_material_rules.py::test_over_return_carries_forward_then_absorbed` |
+| TRAP-33 | 同事件重试 | 重复抵扣 | event_id 主键幂等，重试计 duplicate_skipped | `app/material/store.py` | `tests/test_material_store.py::test_ingest_idempotent_same_event_not_double_deducted` |
+| TRAP-34 | 签证发布失败 | 覆盖旧版 | 事务回滚 + 基版本条件更新，旧版保留 | `app/material/store.py` | `tests/test_material_store.py::test_stale_base_version_keeps_old_certificate` |
+| TRAP-35 | 关闭期补录 | 改写已签认金额 | PERIOD_CLOSED 隔离且不落库，快照摘要不变 | `app/material/store.py` | `tests/test_material_store.py::test_sign_closes_period_and_blocks_new_events` |
 
 ## 对账规则
 

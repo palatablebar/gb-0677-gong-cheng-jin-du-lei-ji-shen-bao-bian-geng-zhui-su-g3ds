@@ -20,10 +20,13 @@ docker compose exec -T app pytest -q
 - 5. 扣回核算：`/deductions`，`/api/deductions`。
 - 6. 进度对账：`/valuation`，`/api/valuation`。
 - 7. 签证归档：`/certificates`，`/api/certificates`。
+- 8. 甲供材承接：`/materials`，`/api/materials/*`（跨期领用退库滚动裁决与材料签证）。
 
 ## 核心规则
 
 累计申报必须减前期已审金额，变更按审批生效版本覆盖；负进度需关联冲回证据。
+
+甲供材按材料码逐期滚动「未结清新增材料池」：本期抵扣不超过本期耗用、也不超过耗用后未结材料款；退库先冲未结池，超额跨期结转且不回改旧签证；已签认周期只读，事件按 event_id 幂等入账、重试不重复抵扣。详见 `docs/MATERIAL-LEDGER.md`。
 
 ## 演示
 

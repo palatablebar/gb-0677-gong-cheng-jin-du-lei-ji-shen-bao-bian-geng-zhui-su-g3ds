@@ -1,0 +1,7 @@
+.ledger td.deduct { font-weight: 700; color: #1a5fb4; }
+.panel__body.inputs input, .panel__body.inputs select { min-width: 7.5rem; }
+#cert-list .reason { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+#cert-list .reason .btn { margin-left: auto; }
+@media print {
+  .rail, .topbar, .inputs, #cert-list, .publish, .sign { display: none !important; }
+}

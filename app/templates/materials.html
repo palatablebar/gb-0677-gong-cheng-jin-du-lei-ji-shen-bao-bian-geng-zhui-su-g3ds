@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>甲供材跨期承接 · {{title}}</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/layout.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="/static/materials.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="stamp">计量签证</div>
+    <nav>
+      {% for slug,name in modules %}
+      <a href="/{{slug}}">{{'%02d'|format(loop.index)}} / {{name}}</a>
+      {% endfor %}
+      <a href="/materials" class="active">08 / 甲供材承接</a>
+    </nav>
+    <small>跨期领用退库<br>滚动未结清新增池</small>
+  </aside>
+  <div class="work">
+    <header class="topbar">
+      <h1>甲供钢材跨期领用退库承接</h1>
+      <button id="load-sample" class="btn">载入样例台账</button>
+      <button id="print" class="btn">打印</button>
+    </header>
+    <main class="content">
+      <div class="kpis">
+        <div class="kpi">本期耗用合计<strong id="kpi-consume">{{result.metrics.period_consume_total}}</strong></div>
+        <div class="kpi">本期可签认抵扣<strong id="kpi-deduct">{{result.metrics.period_deduct_total}}</strong></div>
+        <div class="kpi">退库本期冲减<strong id="kpi-credit">{{result.metrics.return_credit_total}}</strong></div>
+        <div class="kpi">退库待结转<strong id="kpi-carry">{{result.metrics.return_carry_forward_total}}</strong></div>
+        <div class="kpi">剩余可扣<strong id="kpi-remaining">{{result.metrics.remaining_deductible_total}}</strong></div>
+      </div>
+
+      <section class="panel">
+        <div class="panel__body inputs">
+          <select id="event-type" aria-label="事件类型">
+            <option value="issue">领用 issue</option>
+            <option value="consume">耗用 consume</option>
+            <option value="return">退库 return</option>
+            <option value="surplus">余料 surplus</option>
+          </select>
+          <input id="event-id" placeholder="事件编号（幂等键）" aria-label="事件编号">
+          <input id="event-material" placeholder="材料（如 螺纹钢）" aria-label="材料">
+          <input id="event-period" placeholder="周期 YYYY-MM" aria-label="周期">
+          <input id="event-qty" placeholder="数量" aria-label="数量">
+          <input id="event-price" placeholder="单价" aria-label="单价">
+          <input id="event-ref" placeholder="原始单据号" aria-label="原始单据号">
+          <input id="event-time" placeholder="发生时间（带时区）" aria-label="发生时间">
+          <button id="submit-event" class="primary">提交事件</button>
+          <span id="notice" role="status"></span>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="receipt">
+            <div><div class="serial">材料抵扣裁决台账</div><strong>按材料逐期滚动承接（单位：元）</strong></div>
+            <span class="serial">{{result.rows|length}} 期 × 材料</span>
+          </div>
+          <div class="table-scroll">
+            <table class="ledger">
+              <thead>
+              <tr>
+                <th>周期</th><th>材料</th><th>单价</th><th>期初未结量</th>
+                <th>领用</th><th>耗用</th><th>退库</th><th>余料</th>
+                <th>本期耗用额</th><th>本期抵扣</th><th>退库冲减</th>
+                <th>退库待结转</th><th>剩余可扣</th><th>操作</th>
+              </tr>
+              </thead>
+              <tbody id="ledger-rows">
+              {% for r in result.rows %}
+              <tr>
+                <td>{{r.period}}</td><td>{{r.material}}</td><td>{{r.unit_price}}</td>
+                <td>{{r.opening_unsettled_qty}}</td>
+                <td>{{r.issue_qty}}</td><td>{{r.consume_qty}}</td>
+                <td>{{r.return_qty}}</td><td>{{r.surplus_qty}}</td>
+                <td>{{r.period_consume_amount}}</td>
+                <td class="deduct">{{r.period_deduct_amount}}</td>
+                <td>{{r.return_credit_amount}}</td>
+                <td>{{r.return_carry_forward_amount}}</td>
+                <td>{{r.remaining_deductible_amount}}</td>
+                <td><button class="btn publish" data-period="{{r.period}}">发布签证</button></td>
+              </tr>
+              {% else %}
+              <tr><td class="empty">暂无台账事件。</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="signature">
+            <span>采纳事件 {{result.metrics.accepted_events}}</span>
+            <span>隔离 {{result.metrics.quarantine}}</span>
+            <span>抵扣≤耗用：{{'是' if result.metrics.deduction_within_consume else '否'}}</span>
+            {% if sample_mode %}<span>样例预览（未落库）</span>{% endif %}
+          </div>
+        </section>
+
+        <div class="stack">
+          <section class="panel">
+            <div class="panel__head"><h2>待核隔离事项</h2><span id="quarantine-count">{{result.quarantine|length}}</span></div>
+            <div class="panel__body" id="quarantine-list">
+              {% for q in result.quarantine %}
+              <div class="reason"><b>{{q.reason}}</b><span>行 {{q.get('_line','—')}} / {{q.detail}} / {{q.get('event_id','')}}</span></div>
+              {% else %}<div class="empty">无待核事项。</div>{% endfor %}
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel__head"><h2>材料签证</h2><span>版本与签认</span></div>
+            <div class="panel__body" id="cert-list">
+              {% for c in certificates %}
+              <div class="reason"><b>{{c.cert_id}} V{{c.version}} · {{c.status}}</b>
+                <span>{{c.period}} / {{c.digest[:12]}}</span>
+                <button class="btn sign" data-cert="{{c.cert_id}}" data-version="{{c.version}}">签认</button>
+              </div>
+              {% else %}<div class="empty">尚未发布签证。</div>{% endfor %}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <footer class="statusbar">
+      <span>CNY / 历史签证只读 / 退库超额跨期结转</span>
+      <span id="mode">{{'样例预览' if sample_mode else '库内台账'}}</span>
+    </footer>
+  </div>
+</div>
+<script src="/static/materials.js"></script>
+</body>
+</html>
